@@ -1,0 +1,17 @@
+*.class
+*.jar
+*.war
+*.ear
+*.log
+target/
+build/
+.gradle/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.swp
+*.swo
+*~
+.incremental_shooter_save.dat
+copilot-instructions.md
