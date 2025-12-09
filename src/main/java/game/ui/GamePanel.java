@@ -6,6 +6,7 @@ import game.data.GameData;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.AffineTransform;
 
 /**
  * Main rendering panel with game loop.
@@ -91,6 +92,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
         // Enable anti-aliasing for smoother shapes
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, 
                             RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // Apply screen shake translation if any
+        AffineTransform old = g2d.getTransform();
+        double shakeX = engine.getShakeX();
+        double shakeY = engine.getShakeY();
+        if (shakeX != 0.0 || shakeY != 0.0) {
+            g2d.translate(shakeX, shakeY);
+        }
         
         switch (engine.getGameState()) {
             case MENU:
@@ -99,6 +108,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
             case PLAYING:
             case PAUSED:
                 gameUI.render(g2d, engine);
+                // render damage texts on top of game UI so they are visible
+                for (var d : engine.getDamageTexts()) {
+                    d.render(g2d);
+                }
                 break;
             case SHOP:
                 shopUI.render(g2d, engine);
@@ -115,6 +128,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
                 renderGameEndScreen(g2d);
                 break;
         }
+        
+        // restore transform so UI overlays like system cursor etc. aren't shifted
+        g2d.setTransform(old);
     }
     
     private void renderGameEndScreen(Graphics2D g2d) {

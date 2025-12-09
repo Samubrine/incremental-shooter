@@ -4,6 +4,10 @@ import game.entities.Player;
 import game.systems.*;
 import game.ui.GamePanel;
 import game.data.GameData;
+import game.entities.DamageText;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 /**
  * Core game engine managing all game systems and state.
@@ -17,6 +21,7 @@ public class GameEngine {
     private WaveManager waveManager;
     private UpgradeManager upgradeManager;
     private CollisionManager collisionManager;
+    private List<DamageText> damageTexts = new ArrayList<>();
     private InputManager inputManager;
     private SoundManager soundManager;
     private SaveManager saveManager;
@@ -24,6 +29,14 @@ public class GameEngine {
     private GameState gameState;
     private int currentDifficulty;
     private boolean isPaused;
+
+    // --- Screen shake state ---
+    private double screenShakeTimer = 0.0;
+    private double screenShakeDuration = 0.0;
+    private double screenShakeMagnitude = 0.0;
+    private double shakeX = 0.0;
+    private double shakeY = 0.0;
+    private final Random rnd = new Random();
     
     private GameEngine() {
         currentDifficulty = 1;
@@ -48,7 +61,7 @@ public class GameEngine {
         soundManager = new SoundManager();
         saveManager = new SaveManager();
         inputManager = new InputManager();
-        collisionManager = new CollisionManager();
+        collisionManager = new CollisionManager(this);
         upgradeManager = new UpgradeManager();
         
         // Load game data
@@ -62,6 +75,35 @@ public class GameEngine {
         player = new Player(400, 300, upgradeManager);
     }
     
+    public void spawnDamageText(double x, double y, int value, boolean isCrit) {
+        damageTexts.add(new DamageText(x, y, value, isCrit));
+    }
+
+    /**
+     * Trigger a screen shake effect.
+     * @param duration seconds
+     * @param magnitude pixels (max offset)
+     */
+    public void triggerScreenShake(double duration, double magnitude) {
+        this.screenShakeDuration = duration;
+        this.screenShakeTimer = duration;
+        this.screenShakeMagnitude = magnitude;
+    }
+
+    /**
+     * Returns current shake X offset (can be fractional).
+     */
+    public double getShakeX() {
+        return shakeX;
+    }
+
+    /**
+     * Returns current shake Y offset (can be fractional).
+     */
+    public double getShakeY() {
+        return shakeY;
+    }
+    
     /**
      * Start a new game at specified difficulty.
      */
@@ -70,6 +112,7 @@ public class GameEngine {
         upgradeManager.resetTempUpgrades(); // Reset temporary upgrades
         waveManager = new WaveManager(difficulty);
         player.fullReset();
+        damageTexts.clear();
         gameState = GameState.PLAYING;
         isPaused = false;
     }
@@ -91,6 +134,26 @@ public class GameEngine {
         // Check collisions
         collisionManager.checkCollisions(player, waveManager.getEnemies(), 
                                         waveManager.getEnemyProjectiles());
+        
+        // Update damage texts
+        damageTexts.removeIf(d -> !d.isAlive());
+        for (DamageText d : damageTexts) {
+            d.update(deltaTime);
+        }
+
+        // Update screen shake
+        if (screenShakeTimer > 0) {
+            screenShakeTimer -= deltaTime;
+            double t = Math.max(0.0, screenShakeTimer / screenShakeDuration); // 1 -> 0
+            // random offset scaled by t (fade out)
+            double magnitude = screenShakeMagnitude * t;
+            shakeX = (rnd.nextDouble() * 2.0 - 1.0) * magnitude;
+            shakeY = (rnd.nextDouble() * 2.0 - 1.0) * magnitude;
+            if (screenShakeTimer <= 0) {
+                shakeX = 0;
+                shakeY = 0;
+            }
+        }
         
         // Check wave completion
         if (waveManager.isWaveComplete()) {
@@ -159,6 +222,7 @@ public class GameEngine {
     
     public void returnToMenu() {
         gameState = GameState.MENU;
+        damageTexts.clear();
         saveManager.saveGame(new GameData(currentDifficulty, upgradeManager));
     }
     
@@ -172,6 +236,7 @@ public class GameEngine {
     public GameState getGameState() { return gameState; }
     public boolean isPaused() { return isPaused; }
     public int getCurrentDifficulty() { return currentDifficulty; }
+    public List<DamageText> getDamageTexts() { return damageTexts; }
     
     public enum GameState {
         MENU, PLAYING, PAUSED, SHOP, SETTINGS, UPGRADES, WIN, GAME_OVER
