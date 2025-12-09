@@ -15,7 +15,7 @@ public class Player extends Entity {
     // === CRITICAL HIT SYSTEM ===
     private double critChance = 0.1;     // 10% chance
     private double critMultiplier = 2.0; // 2x damage
-    // === DASH SYSTEM ===
+    // DASH
 private double dashCooldown = 1.5;   // detik
 private double dashDuration = 0.15;  // detik
 private double dashSpeedMultiplier = 4.0;
