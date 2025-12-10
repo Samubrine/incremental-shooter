@@ -4,6 +4,7 @@ import game.entities.Player;
 import game.systems.*;
 import game.ui.GamePanel;
 import game.data.GameData;
+import game.data.DifficultyConfig;
 import game.entities.DamageText;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,12 +23,14 @@ public class GameEngine {
     private CollisionManager collisionManager;
     private List<DamageText> damageTexts = new ArrayList<>();
     private InputManager inputManager;
-    private SoundManager soundManager;
+    private SoundManager soundManager; // Fallback for UI sounds
+    private OpenALSoundEngine openALSoundEngine; // Hardware-accelerated audio (1-2ms latency)
     private HitSoundPlayer hitSoundPlayer;
     private SaveManager saveManager;
     
     private GameState gameState;
     private int currentDifficulty;
+    private DifficultyConfig difficultyConfig;
     private boolean isPaused;
 
     // --- Screen shake state ---
@@ -56,7 +59,12 @@ public class GameEngine {
      */
     public void initialize(GamePanel panel) {
         // Initialize managers
-        soundManager = new SoundManager();
+        soundManager = new SoundManager(); // UI sounds
+        
+        // Initialize OpenAL sound engine for ultra-low latency hit sounds
+        openALSoundEngine = new OpenALSoundEngine();
+        openALSoundEngine.initialize();
+        
         hitSoundPlayer = new HitSoundPlayer("src/main/resources/sounds",
             new String[]{"hit", "hit_critical", "player_damaged"});
         saveManager = new SaveManager();
@@ -110,6 +118,7 @@ public class GameEngine {
      */
     public void startGame(int difficulty) {
         this.currentDifficulty = difficulty;
+        this.difficultyConfig = DifficultyConfig.getConfig(difficulty);
         upgradeManager.resetTempUpgrades(); // Reset temporary upgrades
         waveManager = new WaveManager(difficulty);
         player.fullReset();
@@ -202,7 +211,9 @@ public class GameEngine {
     
     private void handleGameWin() {
         // Award bonus cash for completing all 15 waves (Endless mode doesn't trigger this)
-        int bonusCash = currentDifficulty * 50;
+        // Apply difficulty cash multiplier
+        int baseBonusCash = currentDifficulty * 50;
+        int bonusCash = (int)(baseBonusCash * difficultyConfig.getCashMultiplier());
         GameData data = saveManager.loadGame();
         if (data == null) {
             data = new GameData();
@@ -242,9 +253,10 @@ public class GameEngine {
                 data = new GameData();
             }
             
-            // Store current cash and add earned cash
+            // Store current cash and add earned cash (apply difficulty multiplier)
             int currentCash = data.getCash();
-            currentCash += wavesSurvived * 10; // Award 10 cash per wave survived
+            int baseCash = wavesSurvived * 10; // Base: 10 cash per wave survived
+            currentCash += (int)(baseCash * difficultyConfig.getCashMultiplier());
             
             // Preserve the unlocked difficulty (don't overwrite with current difficulty)
             int currentUnlockedDiff = data.getUnlockedDifficulty();
@@ -270,9 +282,10 @@ public class GameEngine {
                     data = new GameData();
                 }
                 
-                // Store current cash and add earned cash
+                // Store current cash and add earned cash (apply difficulty multiplier)
                 int currentCash = data.getCash();
-                currentCash += wavesSurvived * 10; // Award 10 cash per wave survived
+                int baseCash = wavesSurvived * 10; // Base: 10 cash per wave survived
+                currentCash += (int)(baseCash * difficultyConfig.getCashMultiplier());
                 
                 // Preserve the unlocked difficulty (don't overwrite with current difficulty)
                 int currentUnlockedDiff = data.getUnlockedDifficulty();
@@ -326,6 +339,7 @@ public class GameEngine {
     public WaveManager getWaveManager() { return waveManager; }
     public UpgradeManager getUpgradeManager() { return upgradeManager; }
     public SoundManager getSoundManager() { return soundManager; }
+    public OpenALSoundEngine getOpenALSoundEngine() { return openALSoundEngine; }
     public HitSoundPlayer getHitSoundPlayer() { return hitSoundPlayer; }
     public SaveManager getSaveManager() { return saveManager; }
     public InputManager getInputManager() { return inputManager; }
@@ -356,6 +370,9 @@ public class GameEngine {
      * Call this before System.exit() to ensure proper shutdown.
      */
     public void cleanup() {
+        if (openALSoundEngine != null) {
+            openALSoundEngine.cleanup();
+        }
         if (hitSoundPlayer != null) {
             hitSoundPlayer.shutdown();
         }

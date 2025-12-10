@@ -3,13 +3,15 @@ package game.entities;
 import java.awt.*;
 
 /**
- * Projectile entity for both player and enemy bullets.
+ * Projectile entity with health system.
+ * Bullets can collide with each other - lower HP bullet is destroyed.
+ * Damage is equal to bullet's health points.
  */
 public class Projectile extends Entity {
 
-    private double damage;
+    private double health;      // Bullet HP (also determines damage)
     private boolean playerOwned;
-    private boolean critical;   // ✅ CRIT FLAG
+    private boolean critical;
     private Color color;
 
     public Projectile(double x, double y, double vx, double vy,
@@ -17,11 +19,11 @@ public class Projectile extends Entity {
         super(x, y, playerOwned ? 8 : 6, playerOwned ? 8 : 6);
         this.velocityX = vx;
         this.velocityY = vy;
-        this.damage = damage;
+        this.health = damage;   // HP = damage
         this.playerOwned = playerOwned;
         this.critical = critical;
 
-        // ✅ Warna berbeda untuk CRIT
+        // Color based on crit and owner
         if (playerOwned) {
             this.color = critical ? Color.ORANGE : Color.YELLOW;
         } else {
@@ -29,7 +31,7 @@ public class Projectile extends Entity {
         }
     }
 
-    // === BACKWARD COMPATIBILITY (BIAR KODE LAMAMU TIDAK ERROR) ===
+    // Backward compatibility
     public Projectile(double x, double y, double vx, double vy,
                       double damage, boolean playerOwned) {
         this(x, y, vx, vy, damage, playerOwned, false);
@@ -50,7 +52,7 @@ public class Projectile extends Entity {
         g2d.setColor(color);
         g2d.fillOval((int) x, (int) y, (int) width, (int) height);
 
-        // Glow
+        // Glow effect
         g2d.setColor(new Color(
                 color.getRed(),
                 color.getGreen(),
@@ -65,7 +67,18 @@ public class Projectile extends Entity {
         );
     }
 
-    public double getDamage() { return damage; }
+    /**
+     * Reduce bullet health. If HP <= 0, bullet is destroyed.
+     */
+    public void takeDamage(double amount) {
+        health -= amount;
+        if (health <= 0) {
+            alive = false;
+        }
+    }
+
+    public double getDamage() { return health; }  // Damage = current HP
+    public double getHealth() { return health; }
     public boolean isPlayerOwned() { return playerOwned; }
     public boolean isCritical() { return critical; }
 }

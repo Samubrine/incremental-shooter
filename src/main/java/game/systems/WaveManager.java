@@ -106,8 +106,11 @@ public class WaveManager {
             enemy = new BasicEnemy(x, y, currentWave);
         }
         
-        // Apply difficulty HP and damage multipliers
-        enemy.applyDifficultyMultiplier(difficultyConfig.getEnemyHPMultiplier());
+        // Apply difficulty HP, damage, and coin multipliers
+        enemy.applyDifficultyMultiplier(
+            difficultyConfig.getEnemyHPMultiplier(),
+            difficultyConfig.getCoinsMultiplier()
+        );
         
         enemies.add(enemy);
         enemiesSpawned++;

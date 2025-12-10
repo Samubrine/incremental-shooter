@@ -76,13 +76,14 @@ public abstract class Enemy extends Entity {
     }
     
     /**
-     * Apply difficulty multiplier to enemy HP and damage.
+     * Apply difficulty multipliers to enemy HP, damage, and coin rewards.
      * Called when enemy is spawned to scale based on selected difficulty.
      */
-    public void applyDifficultyMultiplier(double multiplier) {
-        this.maxHealth *= multiplier;
+    public void applyDifficultyMultiplier(double hpMultiplier, double coinMultiplier) {
+        this.maxHealth *= hpMultiplier;
         this.health = this.maxHealth;
-        this.damage *= multiplier;
+        this.damage *= hpMultiplier;
+        this.coinValue = (int)(this.coinValue * coinMultiplier);
     }
 
     @Override

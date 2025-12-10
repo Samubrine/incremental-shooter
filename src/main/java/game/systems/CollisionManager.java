@@ -18,6 +18,9 @@ public class CollisionManager {
     public void checkCollisions(Player player, List<Enemy> enemies, 
                                 List<Projectile> enemyProjectiles) {
 
+        // Bullet vs Bullet collisions (player bullets vs enemy bullets)
+        checkBulletCollisions(player.getProjectiles(), enemyProjectiles);
+
         // Player projectiles vs enemies
         for (Projectile bullet : player.getProjectiles()) {
             if (!bullet.isAlive()) continue;
@@ -30,13 +33,13 @@ public class CollisionManager {
                         bullet.isCritical()
                     );
 
-                    // Play hit sound
+                    // Play hit sound using OpenAL (ultra-low latency)
                     if (bullet.isCritical()) {
-                        engine.getSoundManager().playSound("hit_critical");
+                        engine.getOpenALSoundEngine().playSound("hit_critical");
                         // trigger screen shake on critical
                         engine.triggerScreenShake(0.20, 8.0);
                     } else {
-                        engine.getSoundManager().playSound("hit");
+                        engine.getOpenALSoundEngine().playSound("hit");
                     }
 
                     // spawn floating damage text
@@ -61,7 +64,7 @@ public class CollisionManager {
         for (Projectile bullet : enemyProjectiles) {
             if (bullet.isAlive() && bullet.collidesWith(player)) {
                 player.takeDamage(bullet.getDamage());
-                engine.getSoundManager().playSound("player_damaged");
+                engine.getOpenALSoundEngine().playSound("player_damaged");
                 bullet.kill();
             }
         }
@@ -70,8 +73,44 @@ public class CollisionManager {
         for (Enemy enemy : enemies) {
             if (enemy.isAlive() && enemy.collidesWith(player)) {
                 player.takeDamage(enemy.getDamage());
-                engine.getSoundManager().playSound("player_damaged");
+                engine.getOpenALSoundEngine().playSound("player_damaged");
                 enemy.kill(); // Enemy dies on contact
+            }
+        }
+    }
+
+    /**
+     * Check bullet vs bullet collisions.
+     * Lower HP bullet is destroyed, higher HP bullet loses health equal to lower bullet's HP.
+     */
+    private void checkBulletCollisions(List<Projectile> playerBullets, List<Projectile> enemyBullets) {
+        for (Projectile playerBullet : playerBullets) {
+            if (!playerBullet.isAlive()) continue;
+
+            for (Projectile enemyBullet : enemyBullets) {
+                if (!enemyBullet.isAlive()) continue;
+
+                if (playerBullet.collidesWith(enemyBullet)) {
+                    double playerHP = playerBullet.getHealth();
+                    double enemyHP = enemyBullet.getHealth();
+
+                    if (playerHP > enemyHP) {
+                        // Player bullet wins
+                        playerBullet.takeDamage(enemyHP);
+                        enemyBullet.kill();
+                    } else if (enemyHP > playerHP) {
+                        // Enemy bullet wins
+                        enemyBullet.takeDamage(playerHP);
+                        playerBullet.kill();
+                    } else {
+                        // Equal HP - both destroyed
+                        playerBullet.kill();
+                        enemyBullet.kill();
+                    }
+                    
+                    // Only one collision per bullet per frame
+                    if (!playerBullet.isAlive()) break;
+                }
             }
         }
     }

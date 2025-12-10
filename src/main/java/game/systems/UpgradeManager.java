@@ -26,9 +26,52 @@ public class UpgradeManager {
     private int tempCritChanceLevel;
     private int tempCritDamageLevel;
     
-    // Upgrade costs (1.1x scaling per level)
-    private static final int BASE_COST = 50;
-    private static final double COST_MULTIPLIER = 1.1;
+    // === DEVELOPER CONFIGURATION ZONE ===
+    // Adjust these values to balance each upgrade independently
+    
+    // PERMANENT UPGRADES (bought with cash)
+    // Base costs for each upgrade type
+    private static final int PERM_FIRE_RATE_BASE = 50;
+    private static final int PERM_DAMAGE_BASE = 50;
+    private static final int PERM_HEALTH_BASE = 50;
+    private static final int PERM_SPEED_BASE = 50;
+    private static final int PERM_BULLET_COUNT_BASE = 75;  // More expensive (powerful)
+    private static final int PERM_BULLET_SPEED_BASE = 40;  // Cheaper (less impact)
+    private static final int PERM_CRIT_CHANCE_BASE = 60;
+    private static final int PERM_CRIT_DAMAGE_BASE = 60;
+    
+    // Cost multipliers per level for each upgrade type
+    private static final double PERM_FIRE_RATE_MULT = 1.1;
+    private static final double PERM_DAMAGE_MULT = 1.1;
+    private static final double PERM_HEALTH_MULT = 1.1;
+    private static final double PERM_SPEED_MULT = 1.1;
+    private static final double PERM_BULLET_COUNT_MULT = 1.3;  // Scales faster
+    private static final double PERM_BULLET_SPEED_MULT = 1.08;  // Scales slower
+    private static final double PERM_CRIT_CHANCE_MULT = 1.12;
+    private static final double PERM_CRIT_DAMAGE_MULT = 1.12;
+    
+    // TEMPORARY UPGRADES (bought with coins, per-run)
+    // Base costs for each upgrade type
+    private static final int TEMP_FIRE_RATE_BASE = 50;
+    private static final int TEMP_DAMAGE_BASE = 50;
+    private static final int TEMP_HEALTH_BASE = 50;
+    private static final int TEMP_SPEED_BASE = 50;
+    private static final int TEMP_BULLET_COUNT_BASE = 75;  // More expensive (powerful)
+    private static final int TEMP_BULLET_SPEED_BASE = 40;  // Cheaper (less impact)
+    private static final int TEMP_CRIT_CHANCE_BASE = 60;
+    private static final int TEMP_CRIT_DAMAGE_BASE = 60;
+    
+    // Cost multipliers per level for each upgrade type
+    private static final double TEMP_FIRE_RATE_MULT = 1.1;
+    private static final double TEMP_DAMAGE_MULT = 1.1;
+    private static final double TEMP_HEALTH_MULT = 1.1;
+    private static final double TEMP_SPEED_MULT = 1.1;
+    private static final double TEMP_BULLET_COUNT_MULT = 1.3;  // Scales faster
+    private static final double TEMP_BULLET_SPEED_MULT = 1.08;  // Scales slower
+    private static final double TEMP_CRIT_CHANCE_MULT = 1.12;
+    private static final double TEMP_CRIT_DAMAGE_MULT = 1.12;
+    
+    // === END CONFIGURATION ZONE ===
     
     public UpgradeManager() {
         fireRateLevel = 0;
@@ -110,21 +153,105 @@ public class UpgradeManager {
     }
     
     /**
-     * Calculate cost for next permanent upgrade level (1.1x per level for that specific upgrade).
+     * Calculate cost for next permanent upgrade level.
+     * Each upgrade type has its own base cost and scaling multiplier.
      * @param type The upgrade type
      * @param currentPermanentLevel The current permanent level of this upgrade
      */
     public int getUpgradeCost(UpgradeType type, int currentPermanentLevel) {
-        return (int)(BASE_COST * Math.pow(COST_MULTIPLIER, currentPermanentLevel));
+        int baseCost;
+        double multiplier;
+        
+        switch (type) {
+            case FIRE_RATE:
+                baseCost = PERM_FIRE_RATE_BASE;
+                multiplier = PERM_FIRE_RATE_MULT;
+                break;
+            case DAMAGE:
+                baseCost = PERM_DAMAGE_BASE;
+                multiplier = PERM_DAMAGE_MULT;
+                break;
+            case HEALTH:
+                baseCost = PERM_HEALTH_BASE;
+                multiplier = PERM_HEALTH_MULT;
+                break;
+            case SPEED:
+                baseCost = PERM_SPEED_BASE;
+                multiplier = PERM_SPEED_MULT;
+                break;
+            case BULLET_COUNT:
+                baseCost = PERM_BULLET_COUNT_BASE;
+                multiplier = PERM_BULLET_COUNT_MULT;
+                break;
+            case BULLET_SPEED:
+                baseCost = PERM_BULLET_SPEED_BASE;
+                multiplier = PERM_BULLET_SPEED_MULT;
+                break;
+            case CRIT_CHANCE:
+                baseCost = PERM_CRIT_CHANCE_BASE;
+                multiplier = PERM_CRIT_CHANCE_MULT;
+                break;
+            case CRIT_DAMAGE:
+                baseCost = PERM_CRIT_DAMAGE_BASE;
+                multiplier = PERM_CRIT_DAMAGE_MULT;
+                break;
+            default:
+                baseCost = 50;
+                multiplier = 1.1;
+        }
+        
+        return (int)(baseCost * Math.pow(multiplier, currentPermanentLevel));
     }
     
     /**
-     * Calculate cost for next temporary upgrade level (1.1x per temp level for that specific upgrade).
+     * Calculate cost for next temporary upgrade level.
+     * Each upgrade type has its own base cost and scaling multiplier.
      * @param type The upgrade type
      * @param currentTempLevel The current temporary level of this upgrade
      */
     public int getTempUpgradeCost(UpgradeType type, int currentTempLevel) {
-        return (int)(BASE_COST * Math.pow(COST_MULTIPLIER, currentTempLevel));
+        int baseCost;
+        double multiplier;
+        
+        switch (type) {
+            case FIRE_RATE:
+                baseCost = TEMP_FIRE_RATE_BASE;
+                multiplier = TEMP_FIRE_RATE_MULT;
+                break;
+            case DAMAGE:
+                baseCost = TEMP_DAMAGE_BASE;
+                multiplier = TEMP_DAMAGE_MULT;
+                break;
+            case HEALTH:
+                baseCost = TEMP_HEALTH_BASE;
+                multiplier = TEMP_HEALTH_MULT;
+                break;
+            case SPEED:
+                baseCost = TEMP_SPEED_BASE;
+                multiplier = TEMP_SPEED_MULT;
+                break;
+            case BULLET_COUNT:
+                baseCost = TEMP_BULLET_COUNT_BASE;
+                multiplier = TEMP_BULLET_COUNT_MULT;
+                break;
+            case BULLET_SPEED:
+                baseCost = TEMP_BULLET_SPEED_BASE;
+                multiplier = TEMP_BULLET_SPEED_MULT;
+                break;
+            case CRIT_CHANCE:
+                baseCost = TEMP_CRIT_CHANCE_BASE;
+                multiplier = TEMP_CRIT_CHANCE_MULT;
+                break;
+            case CRIT_DAMAGE:
+                baseCost = TEMP_CRIT_DAMAGE_BASE;
+                multiplier = TEMP_CRIT_DAMAGE_MULT;
+                break;
+            default:
+                baseCost = 50;
+                multiplier = 1.1;
+        }
+        
+        return (int)(baseCost * Math.pow(multiplier, currentTempLevel));
     }
     
     /**
