@@ -210,6 +210,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
             case PLAYING:
                 if (key == KeyEvent.VK_P || key == KeyEvent.VK_ESCAPE) {
                     engine.togglePause();
+                } else if (key == KeyEvent.VK_Q && engine.isPaused()) {
+                    // Allow quitting to menu when paused
+                    engine.getSoundManager().playSound("click_button");
+                    engine.quitToMenuFromGame();
                 }
                 break;
                 
