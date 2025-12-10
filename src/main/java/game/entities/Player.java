@@ -13,8 +13,9 @@ import java.util.Random;
 public class Player extends Entity {
 
     // === CRITICAL HIT SYSTEM ===
-    private double critChance = 0.1;     // 10% chance
-    private double critMultiplier = 2.0; // 2x damage
+    // Base values - will be updated from upgrades in reset()
+    private double critChance = 0.1;     // Base 10% chance
+    private double critMultiplier = 1.5; // Base 1.5x damage (+50%)
     // DASH
 private double dashCooldown = 1.5;   // detik
 private double dashDuration = 0.15;  // detik
@@ -55,6 +56,9 @@ private double dashDirY = 0;
         this.health = maxHealth;
         this.fireTimer = 0;
         this.speed = BASE_SPEED + (upgradeManager.getSpeedLevel() * 20);
+        // Apply critical upgrades: +0.5% chance per level, +1% damage per level
+        this.critChance = 0.1 + (upgradeManager.getCritChanceLevel() * 0.005);
+        this.critMultiplier = 1.5 + (upgradeManager.getCritDamageLevel() * 0.01);
         this.projectiles.clear();
         this.alive = true;
     }
@@ -226,6 +230,7 @@ else
 
         g2d.fillOval((int) x, (int) y, (int) width, (int) height);
 
+        // Health bar
         g2d.setColor(Color.RED);
         g2d.fillRect((int) x, (int) (y - 10), (int) width, 5);
         g2d.setColor(Color.GREEN);
@@ -235,6 +240,19 @@ else
                 (int) (width * (health / maxHealth)),
                 5
         );
+        
+        // Dash cooldown indicator - fading bar below player
+        if (dashCooldownTimer > 0) {
+            double cooldownPercent = dashCooldownTimer / dashCooldown;
+            int alpha = (int)(255 * cooldownPercent); // Fades as cooldown decreases
+            g2d.setColor(new Color(100, 200, 255, alpha));
+            g2d.fillRect(
+                (int) x,
+                (int) (y + height + 2),
+                (int) (width * (1.0 - cooldownPercent)),
+                3
+            );
+        }
 
         List<Projectile> projectilesCopy = new ArrayList<>(projectiles);
         for (Projectile p : projectilesCopy) {

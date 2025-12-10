@@ -21,7 +21,12 @@ public class GameData implements Serializable {
     private int speedLevel;
     private int bulletCountLevel;
     private int bulletSpeedLevel;
+    private int critChanceLevel;
+    private int critDamageLevel;
     private boolean specialAbilityUnlocked;
+    
+    // Audio settings
+    private int audioLatencyOffset; // -100 to +100ms
     
     public GameData() {
         this.cash = 0;
@@ -34,12 +39,16 @@ public class GameData implements Serializable {
         speedLevel = 0;
         bulletCountLevel = 0;
         bulletSpeedLevel = 0;
+        critChanceLevel = 0;
+        critDamageLevel = 0;
         specialAbilityUnlocked = false;
+        audioLatencyOffset = 0;
     }
     
-    public GameData(int difficulty, UpgradeManager upgradeManager) {
+    public GameData(int difficulty, UpgradeManager upgradeManager, int audioLatencyOffset) {
         this();
         this.unlockedDifficulty = difficulty;
+        this.audioLatencyOffset = audioLatencyOffset;
         
         // Save ONLY permanent upgrades (not temporary ones)
         this.fireRateLevel = upgradeManager.getPermanentLevel(UpgradeManager.UpgradeType.FIRE_RATE);
@@ -48,6 +57,8 @@ public class GameData implements Serializable {
         this.speedLevel = upgradeManager.getPermanentLevel(UpgradeManager.UpgradeType.SPEED);
         this.bulletCountLevel = upgradeManager.getPermanentLevel(UpgradeManager.UpgradeType.BULLET_COUNT);
         this.bulletSpeedLevel = upgradeManager.getPermanentLevel(UpgradeManager.UpgradeType.BULLET_SPEED);
+        this.critChanceLevel = upgradeManager.getPermanentLevel(UpgradeManager.UpgradeType.CRIT_CHANCE);
+        this.critDamageLevel = upgradeManager.getPermanentLevel(UpgradeManager.UpgradeType.CRIT_DAMAGE);
         this.specialAbilityUnlocked = upgradeManager.hasSpecialAbility();
     }
     
@@ -86,5 +97,8 @@ public class GameData implements Serializable {
     public int getSpeedLevel() { return speedLevel; }
     public int getBulletCountLevel() { return bulletCountLevel; }
     public int getBulletSpeedLevel() { return bulletSpeedLevel; }
+    public int getCritChanceLevel() { return critChanceLevel; }
+    public int getCritDamageLevel() { return critDamageLevel; }
     public boolean hasSpecialAbility() { return specialAbilityUnlocked; }
+    public int getAudioLatencyOffset() { return audioLatencyOffset; }
 }

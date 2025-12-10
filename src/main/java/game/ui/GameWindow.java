@@ -6,8 +6,6 @@ import javax.swing.JFrame;
  * Main game window container.
  */
 public class GameWindow extends JFrame {
-    private static final int WINDOW_WIDTH = 800;
-    private static final int WINDOW_HEIGHT = 600;
     
     public GameWindow() {
         setTitle("2D Incremental Shooter");

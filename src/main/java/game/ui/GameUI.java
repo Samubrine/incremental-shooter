@@ -86,12 +86,18 @@ public class GameUI {
         FontMetrics fm = g2d.getFontMetrics();
         String text = "PAUSED";
         int x = (800 - fm.stringWidth(text)) / 2;
-        g2d.drawString(text, x, 300);
+        g2d.drawString(text, x, 280);
         
         g2d.setFont(new Font("Arial", Font.PLAIN, 20));
         text = "Press P to Resume";
         fm = g2d.getFontMetrics();
         x = (800 - fm.stringWidth(text)) / 2;
-        g2d.drawString(text, x, 350);
+        g2d.drawString(text, x, 340);
+        
+        g2d.setFont(new Font("Arial", Font.PLAIN, 20));
+        text = "Press Q to Quit to Menu";
+        fm = g2d.getFontMetrics();
+        x = (800 - fm.stringWidth(text)) / 2;
+        g2d.drawString(text, x, 370);
     }
 }

@@ -9,6 +9,14 @@ import javax.swing.SwingUtilities;
  */
 public class Main {
     public static void main(String[] args) {
+        // Add shutdown hook to ensure HitSoundPlayer cleanup
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            GameEngine engine = GameEngine.getInstance();
+            if (engine != null) {
+                engine.cleanup();
+            }
+        }));
+        
         SwingUtilities.invokeLater(() -> {
             GameWindow window = new GameWindow();
             window.setVisible(true);

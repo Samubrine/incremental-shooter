@@ -1,6 +1,7 @@
 package game.systems;
 
 import game.entities.*;
+import game.data.DifficultyConfig;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,6 +12,7 @@ import java.util.List;
 public class WaveManager {
     private int currentWave;
     private int difficulty;
+    private DifficultyConfig difficultyConfig;
     private List<Enemy> enemies;
     private List<Projectile> enemyProjectiles;
     
@@ -22,6 +24,7 @@ public class WaveManager {
     
     public WaveManager(int difficulty) {
         this.difficulty = difficulty;
+        this.difficultyConfig = DifficultyConfig.getConfig(difficulty);
         this.currentWave = 0;
         this.enemies = new ArrayList<>();
         this.enemyProjectiles = new ArrayList<>();
@@ -93,15 +96,20 @@ public class WaveManager {
         
         boolean isBossWave = (currentWave % 5 == 0);
         
+        Enemy enemy;
         if (isBossWave) {
-            enemies.add(new BossEnemy(x, y, currentWave));
+            enemy = new BossEnemy(x, y, currentWave);
         } else if (currentWave >= 7 && Math.random() < 0.3) {
             // 30% chance of mage after wave 7
-            enemies.add(new MageEnemy(x, y, currentWave));
+            enemy = new MageEnemy(x, y, currentWave);
         } else {
-            enemies.add(new BasicEnemy(x, y, currentWave));
+            enemy = new BasicEnemy(x, y, currentWave);
         }
         
+        // Apply difficulty HP and damage multipliers
+        enemy.applyDifficultyMultiplier(difficultyConfig.getEnemyHPMultiplier());
+        
+        enemies.add(enemy);
         enemiesSpawned++;
     }
     

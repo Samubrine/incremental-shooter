@@ -30,6 +30,15 @@ public class CollisionManager {
                         bullet.isCritical()
                     );
 
+                    // Play hit sound
+                    if (bullet.isCritical()) {
+                        engine.getSoundManager().playSound("hit_critical");
+                        // trigger screen shake on critical
+                        engine.triggerScreenShake(0.20, 8.0);
+                    } else {
+                        engine.getSoundManager().playSound("hit");
+                    }
+
                     // spawn floating damage text
                     engine.spawnDamageText(
                         enemy.getCenterX(),
@@ -37,12 +46,6 @@ public class CollisionManager {
                         (int) Math.round(bullet.getDamage()),
                         bullet.isCritical()
                     );
-
-                    // trigger screen shake on critical
-                    if (bullet.isCritical()) {
-                        // duration seconds, magnitude pixels
-                        engine.triggerScreenShake(0.20, 8.0);
-                    }
 
                     bullet.kill();
 
@@ -58,6 +61,7 @@ public class CollisionManager {
         for (Projectile bullet : enemyProjectiles) {
             if (bullet.isAlive() && bullet.collidesWith(player)) {
                 player.takeDamage(bullet.getDamage());
+                engine.getSoundManager().playSound("player_damaged");
                 bullet.kill();
             }
         }
@@ -66,6 +70,7 @@ public class CollisionManager {
         for (Enemy enemy : enemies) {
             if (enemy.isAlive() && enemy.collidesWith(player)) {
                 player.takeDamage(enemy.getDamage());
+                engine.getSoundManager().playSound("player_damaged");
                 enemy.kill(); // Enemy dies on contact
             }
         }

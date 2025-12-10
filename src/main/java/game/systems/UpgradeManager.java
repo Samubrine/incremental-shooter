@@ -12,6 +12,8 @@ public class UpgradeManager {
     private int speedLevel;
     private int bulletCountLevel;
     private int bulletSpeedLevel;
+    private int critChanceLevel;
+    private int critDamageLevel;
     private boolean specialAbilityUnlocked;
     
     // Temporary upgrades tracking (for current run only)
@@ -21,6 +23,8 @@ public class UpgradeManager {
     private int tempSpeedLevel;
     private int tempBulletCountLevel;
     private int tempBulletSpeedLevel;
+    private int tempCritChanceLevel;
+    private int tempCritDamageLevel;
     
     // Upgrade costs (1.1x scaling per level)
     private static final int BASE_COST = 50;
@@ -33,6 +37,8 @@ public class UpgradeManager {
         speedLevel = 0;
         bulletCountLevel = 0;
         bulletSpeedLevel = 0;
+        critChanceLevel = 0;
+        critDamageLevel = 0;
         specialAbilityUnlocked = false;
         
         tempFireRateLevel = 0;
@@ -41,6 +47,8 @@ public class UpgradeManager {
         tempSpeedLevel = 0;
         tempBulletCountLevel = 0;
         tempBulletSpeedLevel = 0;
+        tempCritChanceLevel = 0;
+        tempCritDamageLevel = 0;
     }
     
     /**
@@ -53,6 +61,52 @@ public class UpgradeManager {
         tempSpeedLevel = 0;
         tempBulletCountLevel = 0;
         tempBulletSpeedLevel = 0;
+        tempCritChanceLevel = 0;
+        tempCritDamageLevel = 0;
+    }
+    
+    /**
+     * Get actual stat value calculation (base + permanent + temp).
+     * Used for displaying stats in upgrade UI.
+     */
+    public String getStatCalculation(UpgradeType type) {
+        switch (type) {
+            case FIRE_RATE:
+                double baseFireRate = 0.5; // 2 shots/sec
+                double fireRate = baseFireRate / (1 + getLevel(type) * 0.3);
+                return String.format("%.2f shots/sec (Base: %.2f, +%.0f%%)", 
+                    1.0/fireRate, 1.0/baseFireRate, getLevel(type) * 30.0);
+            case DAMAGE:
+                int baseDmg = 10;
+                int totalDmg = baseDmg + (getLevel(type) * 5);
+                return String.format("%d (Base: %d, +%d)", totalDmg, baseDmg, getLevel(type) * 5);
+            case HEALTH:
+                int baseHp = 100;
+                int totalHp = baseHp + (getLevel(type) * 20);
+                return String.format("%d (Base: %d, +%d)", totalHp, baseHp, getLevel(type) * 20);
+            case SPEED:
+                int baseSpeed = 200;
+                int totalSpeed = baseSpeed + (getLevel(type) * 20);
+                return String.format("%d (Base: %d, +%d)", totalSpeed, baseSpeed, getLevel(type) * 20);
+            case BULLET_COUNT:
+                int baseBullets = 1;
+                int totalBullets = baseBullets + getLevel(type);
+                return String.format("%d bullets (Base: %d, +%d)", totalBullets, baseBullets, getLevel(type));
+            case BULLET_SPEED:
+                int baseBSpeed = 400;
+                int totalBSpeed = baseBSpeed + (getLevel(type) * 50);
+                return String.format("%d (Base: %d, +%d)", totalBSpeed, baseBSpeed, getLevel(type) * 50);
+            case CRIT_CHANCE:
+                double baseCrit = 10.0;
+                double totalCrit = baseCrit + (getLevel(type) * 0.5);
+                return String.format("%.1f%% (Base: %.0f%%, +%.1f%%)", totalCrit, baseCrit, getLevel(type) * 0.5);
+            case CRIT_DAMAGE:
+                double baseCritDmg = 50.0; // 1.5x = +50%
+                double totalCritDmg = baseCritDmg + (getLevel(type) * 1.0);
+                return String.format("+%.0f%% (Base: +%.0f%%, +%.0f%%)", totalCritDmg, baseCritDmg, getLevel(type) * 1.0);
+            default:
+                return "Unknown";
+        }
     }
     
     /**
@@ -65,17 +119,36 @@ public class UpgradeManager {
     }
     
     /**
-     * Get cost for temporary upgrade (always 50 coins).
+     * Calculate cost for next temporary upgrade level (1.1x per temp level for that specific upgrade).
+     * @param type The upgrade type
+     * @param currentTempLevel The current temporary level of this upgrade
      */
-    public int getTempUpgradeCost() {
-        return 50;
+    public int getTempUpgradeCost(UpgradeType type, int currentTempLevel) {
+        return (int)(BASE_COST * Math.pow(COST_MULTIPLIER, currentTempLevel));
+    }
+    
+    /**
+     * Get current temporary level for an upgrade type.
+     */
+    public int getTempLevel(UpgradeType type) {
+        switch (type) {
+            case FIRE_RATE: return tempFireRateLevel;
+            case DAMAGE: return tempDamageLevel;
+            case HEALTH: return tempHealthLevel;
+            case SPEED: return tempSpeedLevel;
+            case BULLET_COUNT: return tempBulletCountLevel;
+            case BULLET_SPEED: return tempBulletSpeedLevel;
+            case CRIT_CHANCE: return tempCritChanceLevel;
+            case CRIT_DAMAGE: return tempCritDamageLevel;
+            default: return 0;
+        }
     }
     
     /**
      * Attempt to purchase permanent upgrade with cash.
      */
     public boolean purchaseUpgrade(UpgradeType type, int cash) {
-        int currentLevel = getLevel(type);
+        int currentLevel = getPermanentLevel(type); // Use permanent level for cost calculation
         int cost = getUpgradeCost(type, currentLevel);
         
         if (cash >= cost) {
@@ -97,6 +170,8 @@ public class UpgradeManager {
             case SPEED: tempSpeedLevel++; break;
             case BULLET_COUNT: tempBulletCountLevel++; break;
             case BULLET_SPEED: tempBulletSpeedLevel++; break;
+            case CRIT_CHANCE: tempCritChanceLevel++; break;
+            case CRIT_DAMAGE: tempCritDamageLevel++; break;
         }
     }
     
@@ -108,6 +183,8 @@ public class UpgradeManager {
             case SPEED: return speedLevel + tempSpeedLevel;
             case BULLET_COUNT: return bulletCountLevel + tempBulletCountLevel;
             case BULLET_SPEED: return bulletSpeedLevel + tempBulletSpeedLevel;
+            case CRIT_CHANCE: return critChanceLevel + tempCritChanceLevel;
+            case CRIT_DAMAGE: return critDamageLevel + tempCritDamageLevel;
             default: return 0;
         }
     }
@@ -123,6 +200,8 @@ public class UpgradeManager {
             case SPEED: return speedLevel;
             case BULLET_COUNT: return bulletCountLevel;
             case BULLET_SPEED: return bulletSpeedLevel;
+            case CRIT_CHANCE: return critChanceLevel;
+            case CRIT_DAMAGE: return critDamageLevel;
             default: return 0;
         }
     }
@@ -135,6 +214,8 @@ public class UpgradeManager {
             case SPEED: speedLevel++; break;
             case BULLET_COUNT: bulletCountLevel++; break;
             case BULLET_SPEED: bulletSpeedLevel++; break;
+            case CRIT_CHANCE: critChanceLevel++; break;
+            case CRIT_DAMAGE: critDamageLevel++; break;
         }
     }
     
@@ -149,10 +230,12 @@ public class UpgradeManager {
     public int getSpeedLevel() { return speedLevel + tempSpeedLevel; }
     public int getBulletCountLevel() { return bulletCountLevel + tempBulletCountLevel; }
     public int getBulletSpeedLevel() { return bulletSpeedLevel + tempBulletSpeedLevel; }
+    public int getCritChanceLevel() { return critChanceLevel + tempCritChanceLevel; }
+    public int getCritDamageLevel() { return critDamageLevel + tempCritDamageLevel; }
     public boolean hasSpecialAbility() { return specialAbilityUnlocked; }
     
     public enum UpgradeType {
-        FIRE_RATE, DAMAGE, HEALTH, SPEED, BULLET_COUNT, BULLET_SPEED
+        FIRE_RATE, DAMAGE, HEALTH, SPEED, BULLET_COUNT, BULLET_SPEED, CRIT_CHANCE, CRIT_DAMAGE
     }
     
     // For save/load
@@ -163,6 +246,8 @@ public class UpgradeManager {
         this.speedLevel = data.getSpeedLevel();
         this.bulletCountLevel = data.getBulletCountLevel();
         this.bulletSpeedLevel = data.getBulletSpeedLevel();
+        this.critChanceLevel = data.getCritChanceLevel();
+        this.critDamageLevel = data.getCritDamageLevel();
         this.specialAbilityUnlocked = data.hasSpecialAbility();
     }
 }

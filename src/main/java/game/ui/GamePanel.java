@@ -21,6 +21,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
     private Thread gameThread;
     private GameEngine engine;
     private MenuUI menuUI;
+    private DifficultySelectUI difficultySelectUI;
     private GameUI gameUI;
     private ShopUI shopUI;
     private SettingsUI settingsUI;
@@ -45,6 +46,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
         addMouseListener(this);
         
         menuUI = new MenuUI();
+        difficultySelectUI = new DifficultySelectUI();
         gameUI = new GameUI();
         shopUI = new ShopUI();
         settingsUI = new SettingsUI();
@@ -103,7 +105,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
         
         switch (engine.getGameState()) {
             case MENU:
-                menuUI.render(g2d);
+                menuUI.render(g2d, engine);
+                break;
+            case DIFFICULTY_SELECT:
+                GameData data = engine.getSaveManager().loadGame();
+                int unlockedDiff = (data != null) ? data.getUnlockedDifficulty() : 1;
+                difficultySelectUI.render(g2d, engine, unlockedDiff);
                 break;
             case PLAYING:
             case PAUSED:
@@ -153,14 +160,50 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
         
         switch (engine.getGameState()) {
             case MENU:
-                if (key == KeyEvent.VK_SPACE) {
-                    engine.startGame(1); // Start at difficulty 1
+                GameData saveData = engine.getSaveManager().loadGame();
+                boolean hasSave = (saveData != null && saveData.getCash() > 0);
+                
+                if (key == KeyEvent.VK_C && hasSave) {
+                    // Continue from last difficulty
+                    engine.getSoundManager().playSound("click_button");
+                    engine.startGame(engine.getCurrentDifficulty());
+                } else if (key == KeyEvent.VK_N && hasSave) {
+                    // New game - select difficulty
+                    engine.getSoundManager().playSound("click_button");
+                    engine.openDifficultySelect();
+                } else if (key == KeyEvent.VK_SPACE && !hasSave) {
+                    // No save - go directly to difficulty select
+                    engine.getSoundManager().playSound("click_button");
+                    engine.openDifficultySelect();
                 } else if (key == KeyEvent.VK_U) {
+                    engine.getSoundManager().playSound("click_button");
                     engine.openUpgrades();
                 } else if (key == KeyEvent.VK_S) {
+                    engine.getSoundManager().playSound("click_button");
                     engine.openSettings();
                 } else if (key == KeyEvent.VK_ESCAPE) {
+                    engine.cleanup();
                     System.exit(0);
+                }
+                break;
+                
+            case DIFFICULTY_SELECT:
+                if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_6) {
+                    int selectedDiff = key - KeyEvent.VK_0;
+                    GameData data = engine.getSaveManager().loadGame();
+                    int unlockedDiff = (data != null) ? data.getUnlockedDifficulty() : 1;
+                    
+                    if (selectedDiff <= unlockedDiff) {
+                        engine.getSoundManager().playSound("click_button");
+                        engine.startGame(selectedDiff);
+                    }
+                } else if (key == KeyEvent.VK_E) {
+                    // Endless mode - always accessible
+                    engine.getSoundManager().playSound("click_button");
+                    engine.startGame(999);
+                } else if (key == KeyEvent.VK_ESCAPE) {
+                    engine.getSoundManager().playSound("click_button");
+                    engine.returnToMenu();
                 }
                 break;
                 
@@ -173,13 +216,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
             case PAUSED:
                 if (key == KeyEvent.VK_P || key == KeyEvent.VK_ESCAPE) {
                     engine.togglePause();
+                } else if (key == KeyEvent.VK_Q) {
+                    engine.getSoundManager().playSound("click_button");
+                    engine.quitToMenuFromGame();
                 }
                 break;
                 
             case SHOP:
                 if (key == KeyEvent.VK_SPACE) {
                     engine.continueToNextWave();
-                } else if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_6) {
+                } else if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_8) {
                     handleShopPurchase(key - KeyEvent.VK_1);
                 }
                 break;
@@ -192,23 +238,51 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
                 break;
                 
             case SETTINGS:
-                if (key == KeyEvent.VK_S) {
+                if (key == KeyEvent.VK_T) {
                     engine.getSoundManager().toggleSound();
+                    engine.getSoundManager().playSound("click_button");
+                } else if (key == KeyEvent.VK_LEFT) {
+                    engine.getSoundManager().adjustVolume(-10);
+                    engine.getSoundManager().playSound("click_button");
+                } else if (key == KeyEvent.VK_RIGHT) {
+                    engine.getSoundManager().adjustVolume(10);
+                    engine.getSoundManager().playSound("click_button");
+                } else if (key == KeyEvent.VK_MINUS) {
+                    engine.getSoundManager().adjustVolume(-1);
+                    engine.getSoundManager().playSound("click_button");
+                } else if (key == KeyEvent.VK_EQUALS || key == KeyEvent.VK_PLUS) {
+                    engine.getSoundManager().adjustVolume(1);
+                    engine.getSoundManager().playSound("click_button");
+                } else if ((key == KeyEvent.VK_A || key == KeyEvent.VK_Q) && engine.getHitSoundPlayer() != null) {
+                    // Decrease latency (more negative/predictive)
+                    int current = engine.getHitSoundPlayer().getLatencyOffset();
+                    engine.getHitSoundPlayer().setLatencyOffset(Math.max(-100, current - 5));
+                    engine.getSoundManager().playSound("click_button");
+                } else if ((key == KeyEvent.VK_D || key == KeyEvent.VK_E) && engine.getHitSoundPlayer() != null) {
+                    // Increase latency (more positive/delayed)
+                    int current = engine.getHitSoundPlayer().getLatencyOffset();
+                    engine.getHitSoundPlayer().setLatencyOffset(Math.min(100, current + 5));
+                    engine.getSoundManager().playSound("click_button");
                 } else if (key == KeyEvent.VK_R) {
                     // Reset all data
                     engine.getSaveManager().resetSaveData();
                     engine.getUpgradeManager().resetTempUpgrades();
+                    // Reload upgrade manager to sync with reset save file
+                    engine.reloadUpgrades();
+                    engine.getSoundManager().playSound("click_button");
                     // Return to menu
                     engine.returnToMenu();
                 } else if (key == KeyEvent.VK_ESCAPE) {
+                    engine.getSoundManager().playSound("click_button");
                     engine.returnToMenu();
                 }
                 break;
                 
             case UPGRADES:
-                if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_6) {
+                if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_8) {
                     handlePermanentUpgrade(key - KeyEvent.VK_1);
                 } else if (key == KeyEvent.VK_ESCAPE) {
+                    engine.getSoundManager().playSound("click_button");
                     engine.returnToMenu();
                 }
                 break;
@@ -222,7 +296,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
             UpgradeManager.UpgradeType.HEALTH,
             UpgradeManager.UpgradeType.SPEED,
             UpgradeManager.UpgradeType.BULLET_COUNT,
-            UpgradeManager.UpgradeType.BULLET_SPEED
+            UpgradeManager.UpgradeType.BULLET_SPEED,
+            UpgradeManager.UpgradeType.CRIT_CHANCE,
+            UpgradeManager.UpgradeType.CRIT_DAMAGE
         };
         
         if (upgradeIndex >= 0 && upgradeIndex < types.length) {
@@ -233,12 +309,19 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
                            engine.getUpgradeManager().getPermanentLevel(type));
                 
                 if (data.spendCash(cost)) {
+                    // Increment the permanent upgrade level
                     engine.getUpgradeManager().incrementLevel(type);
-                    // Save updated cash and upgrades
+                    
+                    // Save with updated upgrades AND remaining cash
+                    int latency = (engine.getHitSoundPlayer() != null) ? 
+                                  engine.getHitSoundPlayer().getLatencyOffset() : 0;
                     GameData newData = new GameData(engine.getCurrentDifficulty(), 
-                                                    engine.getUpgradeManager());
-                    newData.addCash(data.getCash()); // Preserve remaining cash
+                                                    engine.getUpgradeManager(),
+                                                    latency);
+                    // Cash was already spent from 'data', now preserve what's left
+                    newData.addCash(data.getCash());
                     engine.getSaveManager().saveGame(newData);
+                    engine.getSoundManager().playSound("click_button");
                 }
             }
         }
@@ -251,14 +334,21 @@ public class GamePanel extends JPanel implements Runnable, KeyListener, MouseLis
             UpgradeManager.UpgradeType.HEALTH,
             UpgradeManager.UpgradeType.SPEED,
             UpgradeManager.UpgradeType.BULLET_COUNT,
-            UpgradeManager.UpgradeType.BULLET_SPEED
+            UpgradeManager.UpgradeType.BULLET_SPEED,
+            UpgradeManager.UpgradeType.CRIT_CHANCE,
+            UpgradeManager.UpgradeType.CRIT_DAMAGE
         };
         
         if (upgradeIndex >= 0 && upgradeIndex < types.length) {
-            if (engine.getPlayer().spendCoins(50)) {
-                engine.getUpgradeManager().purchaseTempUpgrade(types[upgradeIndex]);
+            UpgradeManager.UpgradeType type = types[upgradeIndex];
+            int currentTempLevel = engine.getUpgradeManager().getTempLevel(type);
+            int cost = engine.getUpgradeManager().getTempUpgradeCost(type, currentTempLevel);
+            
+            if (engine.getPlayer().spendCoins(cost)) {
+                engine.getUpgradeManager().purchaseTempUpgrade(type);
                 // Reset player to apply new upgrade values
                 engine.getPlayer().reset();
+                engine.getSoundManager().playSound("click_button");
             }
         }
     }

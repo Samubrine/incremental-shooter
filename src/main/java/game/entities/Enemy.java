@@ -74,6 +74,16 @@ public abstract class Enemy extends Entity {
     public void takeDamage(double damage) {
         takeDamage(damage, false);
     }
+    
+    /**
+     * Apply difficulty multiplier to enemy HP and damage.
+     * Called when enemy is spawned to scale based on selected difficulty.
+     */
+    public void applyDifficultyMultiplier(double multiplier) {
+        this.maxHealth *= multiplier;
+        this.health = this.maxHealth;
+        this.damage *= multiplier;
+    }
 
     @Override
     public void render(Graphics2D g2d) {

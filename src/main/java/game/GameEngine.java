@@ -16,7 +16,6 @@ import java.util.Random;
 public class GameEngine {
     private static GameEngine instance;
     
-    private GamePanel gamePanel;
     private Player player;
     private WaveManager waveManager;
     private UpgradeManager upgradeManager;
@@ -24,6 +23,7 @@ public class GameEngine {
     private List<DamageText> damageTexts = new ArrayList<>();
     private InputManager inputManager;
     private SoundManager soundManager;
+    private HitSoundPlayer hitSoundPlayer;
     private SaveManager saveManager;
     
     private GameState gameState;
@@ -55,10 +55,10 @@ public class GameEngine {
      * Initialize all game systems and load saved data.
      */
     public void initialize(GamePanel panel) {
-        this.gamePanel = panel;
-        
         // Initialize managers
         soundManager = new SoundManager();
+        hitSoundPlayer = new HitSoundPlayer("src/main/resources/sounds",
+            new String[]{"hit", "hit_critical", "player_damaged"});
         saveManager = new SaveManager();
         inputManager = new InputManager();
         collisionManager = new CollisionManager(this);
@@ -69,6 +69,7 @@ public class GameEngine {
         if (data != null) {
             currentDifficulty = data.getUnlockedDifficulty();
             upgradeManager.loadUpgrades(data);
+            hitSoundPlayer.setLatencyOffset(data.getAudioLatencyOffset());
         }
         
         // Initialize player with saved upgrades
@@ -170,20 +171,23 @@ public class GameEngine {
         int coinsEarned = waveManager.getCurrentWave() * 10;
         player.addCoins(coinsEarned);
         
-        // Award cash for surviving this wave
-        GameData data = saveManager.loadGame();
-        if (data == null) {
-            data = new GameData();
-        }
-        data.addCash(10); // +10 cash per wave survived
-        saveManager.saveGame(data);
-        
-        if (waveManager.getCurrentWave() >= 15) {
+        // Check for game win (15 waves, unless Endless mode)
+        if (waveManager.getCurrentWave() >= 15 && currentDifficulty != 999) {
             handleGameWin();
         } else {
+            // Transition to shop (cash will be saved when game ends, not per wave)
             gameState = GameState.SHOP;
-            soundManager.playSound("wave_complete");
+            soundManager.playSound("click_button");
         }
+    }
+    
+    /**
+     * Award cash for completing a wave and save it.
+     * Called when entering the shop screen.
+     */
+    private void awardWaveCash() {
+        // This method is no longer used - cash is awarded at game end, not per wave
+        // Kept for backwards compatibility but does nothing
     }
     
     /**
@@ -197,25 +201,96 @@ public class GameEngine {
     }
     
     private void handleGameWin() {
-        // Award bonus cash for completing all 15 waves
+        // Award bonus cash for completing all 15 waves (Endless mode doesn't trigger this)
         int bonusCash = currentDifficulty * 50;
         GameData data = saveManager.loadGame();
         if (data == null) {
             data = new GameData();
         }
-        data.addCash(bonusCash);
-        data.unlockDifficulty(currentDifficulty + 1);
-        saveManager.saveGame(data);
+        
+        // Store current cash and add bonus
+        int currentCash = data.getCash();
+        currentCash += bonusCash;
+        
+        // Save current unlocked difficulty before creating new GameData
+        int currentUnlockedDiff = data.getUnlockedDifficulty();
+        int nextDifficulty = currentDifficulty + 1;
+        
+        // Save with current upgrade manager and latency to preserve all data
+        int latency = (hitSoundPlayer != null) ? hitSoundPlayer.getLatencyOffset() : 0;
+        GameData saveData = new GameData(currentUnlockedDiff, upgradeManager, latency);
+        saveData.addCash(currentCash); // Set the total accumulated cash
+        
+        // Only unlock next difficulty if not in endless mode (999)
+        if (currentDifficulty != 999) {
+            saveData.unlockDifficulty(nextDifficulty);
+        }
+        
+        saveManager.saveGame(saveData);
         
         gameState = GameState.WIN;
-        soundManager.playSound("game_win");
+        soundManager.playSound("win_difficulty");
     }
     
     private void handleGameOver() {
+        // Award cash for waves COMPLETED (not just started)
+        // Players must complete at least 1 wave to earn cash
+        int wavesSurvived = waveManager.getCurrentWave() - 1; // Subtract 1 because current wave wasn't completed
+        if (wavesSurvived > 0) {
+            GameData data = saveManager.loadGame();
+            if (data == null) {
+                data = new GameData();
+            }
+            
+            // Store current cash and add earned cash
+            int currentCash = data.getCash();
+            currentCash += wavesSurvived * 10; // Award 10 cash per wave survived
+            
+            // Preserve the unlocked difficulty (don't overwrite with current difficulty)
+            int currentUnlockedDiff = data.getUnlockedDifficulty();
+            
+            // Save the cash earned
+            int latency = (hitSoundPlayer != null) ? hitSoundPlayer.getLatencyOffset() : 0;
+            GameData saveData = new GameData(currentUnlockedDiff, upgradeManager, latency);
+            saveData.addCash(currentCash);
+            saveManager.saveGame(saveData);
+        }
+        
         gameState = GameState.GAME_OVER;
-        soundManager.playSound("game_over");
+        soundManager.playSound("wave_lose");
     }
     
+    public void quitToMenuFromGame() {
+        // Award cash for waves COMPLETED (not just started)
+        if (waveManager != null) {
+            int wavesSurvived = waveManager.getCurrentWave() - 1; // Subtract 1 because current wave wasn't completed
+            if (wavesSurvived > 0) {
+                GameData data = saveManager.loadGame();
+                if (data == null) {
+                    data = new GameData();
+                }
+                
+                // Store current cash and add earned cash
+                int currentCash = data.getCash();
+                currentCash += wavesSurvived * 10; // Award 10 cash per wave survived
+                
+                // Preserve the unlocked difficulty (don't overwrite with current difficulty)
+                int currentUnlockedDiff = data.getUnlockedDifficulty();
+                
+                // Save the cash earned
+                int latency = (hitSoundPlayer != null) ? hitSoundPlayer.getLatencyOffset() : 0;
+                GameData saveData = new GameData(currentUnlockedDiff, upgradeManager, latency);
+                saveData.addCash(currentCash);
+                saveManager.saveGame(saveData);
+            }
+        }
+        
+        // Return to menu
+        isPaused = false;
+        gameState = GameState.MENU;
+        damageTexts.clear();
+    }
+
     public void togglePause() {
         isPaused = !isPaused;
     }
@@ -223,7 +298,27 @@ public class GameEngine {
     public void returnToMenu() {
         gameState = GameState.MENU;
         damageTexts.clear();
-        saveManager.saveGame(new GameData(currentDifficulty, upgradeManager));
+        
+        // Load existing data to preserve cash and unlocked difficulty
+        GameData existingData = saveManager.loadGame();
+        int currentCash = (existingData != null) ? existingData.getCash() : 0;
+        int currentUnlockedDiff = (existingData != null) ? existingData.getUnlockedDifficulty() : 1;
+        
+        // Create new save data with current state (preserve unlocked difficulty)
+        GameData saveData = new GameData(currentUnlockedDiff, upgradeManager, hitSoundPlayer.getLatencyOffset());
+        saveData.addCash(currentCash); // Preserve cash
+        saveManager.saveGame(saveData);
+    }
+    
+    /**
+     * Reload upgrade manager from save file.
+     * Called after resetting save data or when permanent upgrades need to sync.
+     */
+    public void reloadUpgrades() {
+        GameData data = saveManager.loadGame();
+        if (data != null) {
+            upgradeManager.loadUpgrades(data);
+        }
     }
     
     // Getters
@@ -231,6 +326,7 @@ public class GameEngine {
     public WaveManager getWaveManager() { return waveManager; }
     public UpgradeManager getUpgradeManager() { return upgradeManager; }
     public SoundManager getSoundManager() { return soundManager; }
+    public HitSoundPlayer getHitSoundPlayer() { return hitSoundPlayer; }
     public SaveManager getSaveManager() { return saveManager; }
     public InputManager getInputManager() { return inputManager; }
     public GameState getGameState() { return gameState; }
@@ -239,7 +335,7 @@ public class GameEngine {
     public List<DamageText> getDamageTexts() { return damageTexts; }
     
     public enum GameState {
-        MENU, PLAYING, PAUSED, SHOP, SETTINGS, UPGRADES, WIN, GAME_OVER
+        MENU, DIFFICULTY_SELECT, PLAYING, PAUSED, SHOP, SETTINGS, UPGRADES, WIN, GAME_OVER
     }
     
     public void openSettings() {
@@ -248,5 +344,32 @@ public class GameEngine {
     
     public void openUpgrades() {
         gameState = GameState.UPGRADES;
+    }
+    
+    public void openDifficultySelect() {
+        gameState = GameState.DIFFICULTY_SELECT;
+        soundManager.playSound("click_button");
+    }
+    
+    /**
+     * Cleanup resources before shutdown.
+     * Call this before System.exit() to ensure proper shutdown.
+     */
+    public void cleanup() {
+        if (hitSoundPlayer != null) {
+            hitSoundPlayer.shutdown();
+        }
+        // Save game state before exit
+        if (upgradeManager != null && hitSoundPlayer != null) {
+            // Load existing data to preserve cash and unlocked difficulty
+            GameData existingData = saveManager.loadGame();
+            int currentCash = (existingData != null) ? existingData.getCash() : 0;
+            int currentUnlockedDiff = (existingData != null) ? existingData.getUnlockedDifficulty() : 1;
+            
+            // Create new save data with current state (preserve unlocked difficulty)
+            GameData saveData = new GameData(currentUnlockedDiff, upgradeManager, hitSoundPlayer.getLatencyOffset());
+            saveData.addCash(currentCash); // Preserve cash
+            saveManager.saveGame(saveData);
+        }
     }
 }
